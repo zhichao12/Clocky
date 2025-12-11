@@ -11,20 +11,29 @@ const mockChrome = {
     sendMessage: vi.fn(),
     onMessage: {
       addListener: vi.fn(),
+      removeListener: vi.fn(),
     },
     onInstalled: {
       addListener: vi.fn(),
     },
     getURL: vi.fn((path: string) => `chrome-extension://test-id/${path}`),
     openOptionsPage: vi.fn(),
+    lastError: undefined as chrome.runtime.LastError | undefined,
   },
   storage: {
     sync: {
       get: vi.fn(),
       set: vi.fn(),
+      clear: vi.fn(),
+    },
+    local: {
+      get: vi.fn(),
+      set: vi.fn(),
+      clear: vi.fn(),
     },
     onChanged: {
       addListener: vi.fn(),
+      removeListener: vi.fn(),
     },
   },
   tabs: {
