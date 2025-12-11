@@ -109,13 +109,13 @@ interface ReminderTimeEditorProps {
 }
 
 const DAYS_OF_WEEK = [
-  { value: 0, label: '日', shortLabel: 'S' },
   { value: 1, label: '一', shortLabel: 'M' },
   { value: 2, label: '二', shortLabel: 'T' },
   { value: 3, label: '三', shortLabel: 'W' },
   { value: 4, label: '四', shortLabel: 'T' },
   { value: 5, label: '五', shortLabel: 'F' },
   { value: 6, label: '六', shortLabel: 'S' },
+  { value: 0, label: '日', shortLabel: 'S' },
 ] as const;
 
 function ReminderTimeEditor({ time, onChange, onRemove, canRemove }: ReminderTimeEditorProps) {
@@ -261,18 +261,7 @@ export default function App() {
   }>({ type: null });
 
 
-  // Load settings and site count on mount
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Apply theme on settings change
-  useEffect(() => {
-    applyTheme(settings.theme);
-  }, [settings.theme]);
-
-  async function loadData() {
-
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -297,10 +286,16 @@ export default function App() {
     }
   }, []);
 
-  // Load settings on mount
+  // Load settings and site count on mount
   useEffect(() => {
-    loadSettings();
-  }, [loadSettings]);
+    loadData();
+  }, [loadData]);
+
+  // Apply theme on settings change
+  useEffect(() => {
+    applyTheme(settings.theme);
+  }, [settings.theme]);
+
 
   function applyTheme(theme: ThemePreference) {
     const isDark =
@@ -419,6 +414,8 @@ export default function App() {
     try {
       const response = await sendMessage({ type: 'RESET_ALL_STATUS' });
       if (response.success) {
+        // 重置状态后刷新数据，确保角标/列表一致
+        await loadData();
         setConfirmDialog({ type: null });
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);

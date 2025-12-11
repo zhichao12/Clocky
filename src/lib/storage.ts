@@ -423,6 +423,9 @@ export async function updateStatus(
     updatedSite.checkedInStatus = value;
     if (value) {
       updatedSite.lastCheckedInAt = now;
+      // 签到视为已访问，保持状态一致
+      updatedSite.visitedStatus = true;
+      updatedSite.lastVisitedAt = now;
       updatedSite.checkInHistory = [...site.checkInHistory, { timestamp: now, type: 'manual' }];
     }
   }
@@ -621,6 +624,8 @@ export async function resetDailyStatus(area: StorageArea = 'sync'): Promise<Site
     ...site,
     visitedStatus: false,
     checkedInStatus: false,
+    lastVisitedAt: null,
+    lastCheckedInAt: null,
   }));
 
   return new Promise((resolve, reject) => {

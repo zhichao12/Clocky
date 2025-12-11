@@ -187,15 +187,17 @@ function SiteItem({
       {/* Site Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p
-            className={`text-sm font-medium truncate ${
+          <button
+            type="button"
+            onClick={() => onOpen(site.url)}
+            className={`text-left text-sm font-medium truncate hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded ${
               site.checkedInStatus
                 ? 'text-gray-400 dark:text-gray-500'
                 : 'text-gray-900 dark:text-gray-100'
             }`}
           >
             {site.title}
-          </p>
+          </button>
           <div className="flex gap-1 flex-shrink-0">
             <StatusPill type="visited" active={site.visitedStatus && !site.checkedInStatus} />
             <StatusPill type="checkedIn" active={site.checkedInStatus} />
@@ -206,23 +208,6 @@ function SiteItem({
 
       {/* Actions */}
       <div className="flex items-center gap-0.5 flex-shrink-0">
-        {/* Open Site */}
-        <button
-          onClick={() => onOpen(site.url)}
-          className="p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
-          title="打开网站"
-
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-            />
-          </svg>
-        </button>
-
         {/* Mark Visited */}
         <button
           onClick={() => onMarkVisited(site.id)}
@@ -473,6 +458,7 @@ export default function App() {
   const handleMarkCheckedIn = useCallback(
     async (id: string) => {
       setOptimisticIds((prev) => new Set(prev).add(id));
+      // 签到默认视为已访问
       await markSiteStatus(id, 'checkedIn');
       setOptimisticIds((prev) => {
         const next = new Set(prev);
@@ -497,9 +483,43 @@ export default function App() {
     [removeSite]
   );
 
-  // Handle opening site
-  const handleOpenSite = useCallback((url: string) => {
-    chrome.tabs.create({ url });
+  // Handle opening site：优先跳转已打开标签，否则新建
+  const handleOpenSite = useCallback(async (url: string) => {
+    const target = new URL(url);
+
+    const tabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+      chrome.tabs.query({}, (found) => resolve(found));
+    });
+
+    const exactMatch = tabs.find((tab) => tab.url?.startsWith(url));
+    const originMatch = tabs.find((tab) => {
+      if (!tab.url) return false;
+      try {
+        const tabUrl = new URL(tab.url);
+        return tabUrl.hostname === target.hostname;
+      } catch {
+        return false;
+      }
+    });
+
+    const tabToActivate = exactMatch ?? originMatch;
+
+    if (tabToActivate?.id !== undefined) {
+      await new Promise((resolve) => {
+        chrome.tabs.update(tabToActivate.id!, { active: true }, () => resolve(null));
+      });
+
+      if (tabToActivate.windowId !== undefined) {
+        await new Promise((resolve) => {
+          chrome.windows.update(tabToActivate.windowId!, { focused: true }, () => resolve(null));
+        });
+      }
+      return;
+    }
+
+    await new Promise((resolve) => {
+      chrome.tabs.create({ url, active: true }, () => resolve(null));
+    });
   }, []);
 
   // Open options page
@@ -703,7 +723,7 @@ export default function App() {
       {!isLoading && displaySites.length > 0 && (
         <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-center">
           <span className="text-xs text-gray-400 dark:text-gray-500">
-            共 {sites.length} 个网站 · 点击图标快速操作
+            共 {sites.length} 个网站 · 点击标题打开，右侧按钮可标记/删除
           </span>
         </div>
       )}

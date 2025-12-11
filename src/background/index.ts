@@ -41,6 +41,7 @@ import {
   resetDailyStatus,
   clearAllData,
   getPendingCount,
+  onSitesChange,
   type SiteEntry,
   type ReminderSettings,
   type AddSiteInput,
@@ -53,6 +54,11 @@ import {
 
 
 console.log('签到助手 Background Service Worker started');
+
+// Listen to site changes to keep badge同步，避免前端直接写存储时角标不同步
+onSitesChange(async () => {
+  await updateBadgeCount();
+});
 
 // ============================================================================
 // Message Handling
